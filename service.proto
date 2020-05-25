@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+// Given a URL which a client wants to persist (say, a link to a YouTube video),
+// a Persit client will query a Persist worker (server) with the URL; the server
+// responds whith a list of supported formats. The client can then request one
+// or more formats to be persisted. It receives a list of jobs - each job
+// containing an ID, and the format. Jobs are independent; multiple formats can
+// be extracted on the same job - so the same job id can be repeated, one time
+// for each format.
+
+// So servers are supposed to handle persisting. Clients can opt out of that and
+// request payloads to be streamed back to them - assuming the server supports
+// it for the particular format.
+
+// Very informal description, not covering object streaming:
+// client -> server: given this URL, how can you perist it ?
+// server -> client: here's a list of formats; some of them might require parameters
+// client -> server: ok, I want the following formats...
+// server -> client: i'll notify you when they are ready, and give you a link to download each artifact
+// server -> client: i can also stream you updates on all the jobs you requested
+
+// Intended use cases:
+// - objects (streamed from an object scraper)
+// - persiting videos (youtube)
+// - readable (cleaned up) representation of an article (ex: w. https://github.com/mozilla/readability)
+// - archived web page (https://github.com/gildas-lormeau/SingleFile)
+
+package persist;
+
+message Formats {
+  message Format {
+    string id = 1;
+    string description = 2;
+    bool streamable = 3;
+    message Param {
+      string id = 1;
+      string description = 2;
+      string type = 3;
+      bool required = 4;
+      string warning = 5;
+    }
+    repeated Param params = 4;
+  }
+  repeated Format formats = 1;
+  repeated string warnings = 2;
+}
+
+message PersistRequest {
+  string url = 1;
+  message Format {
+    string id = 1;
+    message Param {
+      string id = 1;
+      string value = 2;
+      bool stream = 3;
+    }
+    repeated Param params = 3;
+  }
+  repeated Format formats = 2;
+}
+
+message PersistResponse {
+  message ArtifactPromise {
+    string format = 1;
+    string jobId = 2;
+  }
+  repeated ArtifactPromise artifactPromises = 1;
+}
+
+message JobCommand {
+  enum Command {
+    CANCEL = 0;
+    PAUSE = 1;
+  }
+  Command command = 1;
+}
+
+message JobCommandResponse {
+  enum Type {
+    SUCCESS = 0;
+    FAILURE = 1;
+  }
+  Type type = 1;
+  string payload = 2;
+}
+
+message JobUpdate {
+  string id = 1; // job id
+  enum UpdateType {
+    FATAL = 0; // job halted due to error
+    ERROR = 1; // job encountered an error, but continues
+    WARNING = 2; // job encountered an issue, but continues
+    PROGRESS_PERCENTAGE = 3;
+    PROGRESS_STEPS = 4; // [1/5], etc
+    PROGRESS_GENERIC = 5; // nr. of bytes/items/etc processed, etc
+    CANCELLED = 6; // job cancelled
+    COMPLETED = 7; // job completed 
+    OBJECT = 8; // payload represents work done by the job
+    DEBUG = 100;
+  }
+  UpdateType type = 2;
+  string payload = 3;
+}
+
+message Url {
+  string url = 1;
+}
+
+message JobId {
+  string id = 1;
+}
+
+service PersistService {
+  rpc GetFormats(Url) returns (Formats) {};
+  rpc Persist(PersistRequest) returns (PersistResponse) {};
+  rpc JobCommand(JobCommand) returns (JobCommandResponse) {};
+  rpc JobUpdates(JobId) returns (stream JobUpdate) {};
+}
