@@ -1,31 +1,31 @@
 syntax = "proto3";
 
-// Given a URL which a client wants to persist (say, a link to a YouTube video),
-// a Persit client will query a Persist worker (server) with the URL; the server
-// responds whith a list of supported formats. The client can then request one
-// or more formats to be persisted. It receives a list of jobs - each job
-// containing an ID, and the format. Jobs are independent; multiple formats can
-// be extracted on the same job - so the same job id can be repeated, one time
-// for each format.
+// Given a URL which a client wants to serialize, the client will query
+// available workers with the URL; these respond whith a list of supported
+// formats. The client can then request one or more formats to be serialized. It
+// receives a list of jobs - each job containing an ID, and the format. Jobs are
+// independent; multiple formats can be extracted on the same job - so the same
+// job id can be repeated, one time for each format.
 
-// So servers are supposed to handle persisting. Clients can opt out of that and
-// request payloads to be streamed back to them - assuming the server supports
-// it for the particular format.
+// Once the URL is somehow serialized, the resulting artifacts can be stored by
+// the server, with the client receiving download links. Clients can opt out of
+// that and request payloads to be streamed back to them - assuming the server
+// supports it for the particular format.
 
-// Very informal description, not covering object streaming:
-// client -> server: given this URL, how can you perist it ?
+// Very informal description:
+// client -> server: given this URL, how can you serialize it ?
 // server -> client: here's a list of formats; some of them might require parameters
 // client -> server: ok, I want the following formats...
 // server -> client: i'll notify you when they are ready, and give you a link to download each artifact
 // server -> client: i can also stream you updates on all the jobs you requested
 
 // Intended use cases:
-// - objects (streamed from an object scraper)
-// - persiting videos (youtube)
-// - readable (cleaned up) representation of an article (ex: w. https://github.com/mozilla/readability)
-// - archived web page (https://github.com/gildas-lormeau/SingleFile)
+// - general structured scraping ⇒ JSON payloads
+// - media ⇒ video file(s), subtitles, video description, stats
+// - articles ⇒ readable (cleaned up) representation (ex: w. https://github.com/mozilla/readability)
+// - any web page ⇒ archive (https://github.com/gildas-lormeau/SingleFile)
 
-package persist;
+package serialize;
 
 message Formats {
   message Format {
@@ -45,7 +45,7 @@ message Formats {
   repeated string warnings = 2;
 }
 
-message PersistRequest {
+message SerializeRequest {
   string url = 1;
   message Format {
     string id = 1;
@@ -59,7 +59,7 @@ message PersistRequest {
   repeated Format formats = 2;
 }
 
-message PersistResponse {
+message SerializeResponse {
   message ArtifactPromise {
     string format = 1;
     string jobId = 2;
@@ -110,9 +110,9 @@ message JobId {
   string id = 1;
 }
 
-service PersistService {
+service SerializeService {
   rpc GetFormats(Url) returns (Formats) {};
-  rpc Persist(PersistRequest) returns (PersistResponse) {};
+  rpc Serialize(SerializeRequest) returns (PersistResponse) {};
   rpc JobCommand(JobCommand) returns (JobCommandResponse) {};
   rpc JobUpdates(JobId) returns (stream JobUpdate) {};
 }
