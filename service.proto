@@ -25,6 +25,16 @@ syntax = "proto3";
 // - articles ⇒ readable (cleaned up) representation (ex: w. https://github.com/mozilla/readability)
 // - any web page ⇒ archive (https://github.com/gildas-lormeau/SingleFile)
 
+// Job states: RUNNING, PAUSED, FAILED, SUCCEEDED, CANCELLED
+// Possible transitions:
+// ● → RUNNING
+// ● → PAUSED
+// RUNNING → PAUSED | FAILED | SUCCEEDED | CANCELLED
+// PAUSED → RUNNING | CANCELLED
+// FAILED → ◉
+// SUCCEDED → ◉
+// CANCELLED → ◉
+
 package serialize;
 
 message Formats {
@@ -71,6 +81,7 @@ message JobCommand {
   enum Command {
     CANCEL = 0;
     PAUSE = 1;
+    CONTINUE = 1;
   }
   Command command = 1;
 }
@@ -87,19 +98,21 @@ message JobCommandResponse {
 message JobUpdate {
   string id = 1; // job id
   enum UpdateType {
-    FATAL = 0; // job halted due to error
-    ERROR = 1; // job encountered an error, but continues
-    WARNING = 2; // job encountered an issue, but continues
-    PROGRESS_PERCENTAGE = 3;
-    PROGRESS_STEPS = 4; // [1/5], etc
-    PROGRESS_GENERIC = 5; // nr. of bytes/items/etc processed, etc
-    CANCELLED = 6; // job cancelled
-    COMPLETED = 7; // job completed 
-    OBJECT = 8; // payload represents work done by the job
-    DEBUG = 100;
+    ERROR = 0; // job halted due to error
+    WARNING = 1; // job encountered an issue, but continues
+    PROGRESS = 2; // payload contains progress update
+    CANCELLED = 3; // job cancelled
+    COMPLETED = 4; // job completed 
+    PAUSED = 5; // job paused - must receive "CONTINUE" to proceed
+    DEBUG = 100; // debug message
   }
   UpdateType type = 2;
   string payload = 3;
+}
+
+message JobResult {
+  string id = 1; // job id
+  string payload = 2;
 }
 
 message Url {
@@ -115,4 +128,5 @@ service SerializeService {
   rpc Serialize(SerializeRequest) returns (PersistResponse) {};
   rpc JobCommand(JobCommand) returns (JobCommandResponse) {};
   rpc JobUpdates(JobId) returns (stream JobUpdate) {};
+  rpc JobResults(JobId) returns (stream JobResult) {};
 }
