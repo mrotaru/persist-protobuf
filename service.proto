@@ -81,7 +81,7 @@ message JobCommand {
   enum Command {
     CANCEL = 0;
     PAUSE = 1;
-    CONTINUE = 1;
+    CONTINUE = 2;
   }
   Command command = 1;
 }
@@ -98,11 +98,11 @@ message JobCommandResponse {
 message JobUpdate {
   string id = 1; // job id
   enum UpdateType {
-    ERROR = 0; // job halted due to error
+    FAILED = 0; // job halted due to error
     WARNING = 1; // job encountered an issue, but continues
     PROGRESS = 2; // payload contains progress update
     CANCELLED = 3; // job cancelled
-    COMPLETED = 4; // job completed 
+    SUCCEDED = 4; // job completed successfully
     PAUSED = 5; // job paused - must receive "CONTINUE" to proceed
     DEBUG = 100; // debug message
   }
